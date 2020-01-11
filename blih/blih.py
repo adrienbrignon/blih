@@ -5,12 +5,14 @@ import json
 import requests
 
 from hashlib import sha512
+from urllib.parse import urljoin
 
 
 class Blih:
 
-    VERSION = 2.1
-    ENDPOINT = 'https://blih.epitech.eu'
+    VERSION = 2.0
+    USER_AGENT = 'blih-' + '2.0'
+    ENDPOINT = 'https://blih.epitech.eu/' + str(VERSION)
 
     def __init__(self, username: str, password: str):
         """The class constructor."""
@@ -39,8 +41,39 @@ class Blih:
     def request(self, *args, **kwargs):
         """Send a request to the server."""
 
-        kwargs['data'] = self.sign(kwargs.get('data', []))
+        args = (args[0], urljoin(self.ENDPOINT, args[1])) + args[2:]
+
+        # Set sane defaults.
+        kwargs['json'] = self.sign(kwargs.get('data', None))
+        kwargs['headers'] = kwargs.get('headers', {})
+        kwargs['headers']['User-Agent'] = self.USER_AGENT
+        kwargs['headers']['Content-Type'] = 'application/json'
 
         r = requests.request(*args, **kwargs)
 
-        return r.text
+        return r.json()
+
+    def whoami(self):
+        """Returns details about the logged in user."""
+
+        json = self.request('GET', '/whoami')
+
+        if 'message' in json:
+            return {'username': json['message']}
+
+        return json
+
+    def repositories(self):
+        """Returns the list of repositories created by the logged in user."""
+
+        json = self.request('GET', '/repositories')
+
+        if 'repositories' in json:
+            return json['repositories']
+
+        return json
+
+    def ssh_keys(self):
+        """Returns the list of SSH keys uploaded by the logged in user."""
+
+        return self.request('GET', '/sshkeys')
